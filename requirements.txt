@@ -1,0 +1,13 @@
+torch
+torchvision
+tqdm
+opencv-python
+scipy
+matplotlib
+pillow
+tensorboardX
+neptune-client
+pandas
+numpy
+scikit-learn
+pyclustering
