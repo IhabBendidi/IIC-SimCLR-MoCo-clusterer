@@ -43,7 +43,7 @@ from tools.ops import initialize_queue
 
 
 from tensorboardX import SummaryWriter
-#from torch.utils.tensorboard import SummaryWriter
+
 # Configuration
 parser = argparse.ArgumentParser(description='PyTorch GAN Training')
 
@@ -60,7 +60,7 @@ parser.add_argument('--augmentation', default='original', help='augmentation to 
                     choices=['mnist','original','improved_v0','improved','improved_v2','improved_v2.2','improved_v3','improved_v3.1','improved_v4','improved_v4.1','improved_v5'])
 parser.add_argument('--workers', default=4, type=int, help='the number of workers of data loader')
 
-parser.add_argument('--model_name', type=str, default='GAN',
+parser.add_argument('--model_name', type=str, default='IIC',
                     help='Prefix of logs and results folders. '
                          'ex) --model_name=ABC generates ABC_20191230-131145 in logs and results')
 
@@ -75,8 +75,7 @@ parser.add_argument('--log_step', default=100, type=int)
 
 parser.add_argument('--sty_dim', default=128, type=int, help='The size of style vector')
 parser.add_argument('--output_k', default=10, type=int, help='Total number of classes to use')
-parser.add_argument('--img_size', default=128, type=int, help='Input image size')
-parser.add_argument('--dims', default=2048, type=int, help='Inception dims for FID')
+parser.add_argument('--img_size', default=70, type=int, help='Input image size')
 
 
 parser.add_argument('--neptune', dest='nept', action='store_true',
@@ -184,23 +183,12 @@ def main():
 
 
     # unsup_start : train networks with supervised data only before unsup_start
-    # separated : train IIC only until epoch = args.separated
-    # ema_start : Apply EMA to Generator after args.ema_start
     args.unsup_start = 0
-    args.separated = 100 #0 #15 #65 #65
-    args.ema_start = 101 #1 #16 #66
-    args.fid_start = 101 #16 #66
 
     if args.debug :
         args.unsup_start = 0
-        args.separated = 9 #65
-        args.ema_start = 10 #66
-        args.fid_start = 10#66
 
     args.unsup_start = args.unsup_start
-    args.separated = args.separated
-    args.ema_start = args.ema_start
-    args.fid_start = args.fid_start
 
     # Cuda Set-up
     if args.gpu is not None:
@@ -250,7 +238,6 @@ def main():
     args.res_dir = os.path.join('./results', args.model_name)
     args.plot_dir = os.path.join(args.res_dir, 'clusters')
     args.npy_dir = os.path.join(args.res_dir, 'data')
-    args.embs_folder = os.path.join(args.npy_dir, 'embeddings')
     args.imgs_folder = os.path.join(args.npy_dir, 'imgs')
     args.viz_dir = os.path.join(args.res_dir, 'viz')
 
@@ -264,7 +251,6 @@ def main():
         args.res_dir = os.path.join('./debug/results', args.model_name)
         args.plot_dir = os.path.join(args.res_dir, 'clusters')
         args.npy_dir = os.path.join(args.res_dir, 'data')
-        args.embs_folder = os.path.join(args.npy_dir, 'embeddings')
         args.imgs_folder = os.path.join(args.npy_dir, 'imgs')
         args.viz_dir = os.path.join(args.res_dir, 'viz')
 
@@ -272,7 +258,6 @@ def main():
     makedirs(args.plot_dir)
     makedirs(args.npy_dir)
     makedirs(args.viz_dir)
-    makedirs(args.embs_folder)
     makedirs(args.imgs_folder)
 
     dirs_to_make = next(os.walk('./'))[1]
@@ -397,11 +382,6 @@ def main_worker(gpu, ngpus_per_node, args,run):
 
         if args.distributed:
             train_sampler.set_epoch(epoch)
-        if epoch == args.ema_start and 'GAN' in args.train_mode:
-            if args.distributed:
-                networks['G_EMA'].module.load_state_dict(networks['G'].module.state_dict())
-            else:
-                networks['G_EMA'].load_state_dict(networks['G'].state_dict())
 
         trainFunc(train_loader, networks, opts, epoch, args, {'logger': logger, 'queue': queue,'Neptune':run})
 
@@ -413,39 +393,12 @@ def main_worker(gpu, ngpus_per_node, args,run):
             best_AMI = best_AMI[0]
             best_clustering_epoch = best_clustering_epoch[0]
 
-        if epoch < args.fid_start :
-            fid_ema_mean = fid_best_ema
-            best_fid_epoch = 0
-            if args.nept :
-                run["val/best_FID"].log(fid_best_ema)
-                run["val/mFID"].log(fid_ema_mean)
-                run["val/best_fid_epoch"].log(best_fid_epoch)
 
-        # Calc fid
-        if epoch >= args.fid_start and args.data_folder != "mnist":
-            fid_ema = calcFIDBatch(args, {'VAL': val_loader, 'TRAIN': train_loader}, networks, 'EMA', train_dataset)
-            fid_ema_mean = sum(fid_ema) / (len(fid_ema))
-
-            if fid_best_ema > fid_ema_mean:
-                fid_best_ema = fid_ema_mean
-                save_model(args, 4567, networks, opts)
-                best_fid_epoch = epoch
-            if args.nept :
-                run["val/best_FID"].log(fid_best_ema)
-                run["val/mFID"].log(fid_ema_mean)
-                run["val/best_fid_epoch"].log(best_fid_epoch)
-
-            print("Mean FID : [{}] AT EPOCH[{}] G_EMA / BEST EVER[{}]".format(fid_ema_mean, epoch + 1, fid_best_ema))
 
         # Write logs
         if not args.multiprocessing_distributed or (args.multiprocessing_distributed and args.rank % args.ngpus_per_node == 0):
             if (epoch + 1) % 10 == 0:
                 save_model(args, epoch, networks, opts)
-            if not args.train_mode in ['CLS_UN', 'CLS_SEMI']:
-                if epoch >= args.fid_start and args.data_folder != "mnist":
-                    for idx_fid in range(len(args.att_to_use)):
-                        add_logs(args, logger, 'STATEMA/G_EMA{}/FID'.format(idx_fid), fid_ema[idx_fid], epoch + 1)
-                    add_logs(args, logger, 'STATEMA/G_EMA/mFID', fid_ema_mean, epoch + 1)
             if len(args.epoch_acc) > 0:
                 add_logs(args, logger, 'STATC/Acc', float(args.epoch_acc[-1]), epoch + 1)
 
@@ -467,13 +420,7 @@ def build_model(args):
     if 'C' in args.to_train:
         networks['C'] = GuidingNet(args.img_size, {'cont': args.sty_dim, 'disc': args.output_k})
         networks['C_EMA'] = GuidingNet(args.img_size, {'cont': args.sty_dim, 'disc': args.output_k})
-    if 'D' in args.to_train:
-        networks['D'] = Discriminator(args.img_size, num_domains=args.output_k)
-    if 'G' in args.to_train:
-        networks['G'] = Generator(args.img_size, args.sty_dim, use_sn=False)
-        networks['G_EMA'] = Generator(args.img_size, args.sty_dim, use_sn=False)
-    if 'I' in args.to_train:
-        networks['inceptionNet'] = InceptionV3([InceptionV3.BLOCK_INDEX_BY_DIM[args.dims]])
+
 
     if args.distributed:
         if args.gpu is not None:
@@ -482,8 +429,6 @@ def build_model(args):
             args.batch_size = int(args.batch_size / args.ngpus_per_node)
             args.workers = int(args.workers / args.ngpus_per_node)
             for name, net in networks.items():
-                if name in ['inceptionNet']:
-                    continue
                 net_tmp = net.cuda(args.gpu)
                 networks[name] = torch.nn.parallel.DistributedDataParallel(net_tmp, device_ids=[args.gpu], output_device=args.gpu)
         else:
@@ -507,14 +452,7 @@ def build_model(args):
             networks['C_EMA'].module.load_state_dict(networks['C'].module.state_dict())
         else:
             networks['C_EMA'].load_state_dict(networks['C'].state_dict())
-    if 'D' in args.to_train:
-        opts['D'] = torch.optim.RMSprop(
-            networks['D'].module.parameters() if args.distributed else networks['D'].parameters(),
-            1e-4, weight_decay=0.0001)
-    if 'G' in args.to_train:
-        opts['G'] = torch.optim.RMSprop(
-            networks['G'].module.parameters() if args.distributed else networks['G'].parameters(),
-            1e-4, weight_decay=0.0001)
+
 
     return networks, opts
 
@@ -534,8 +472,6 @@ def load_model(args, networks, opts):
             args.start_epoch = checkpoint['epoch']
             if not args.multiprocessing_distributed:
                 for name, net in networks.items():
-                    if name in ['inceptionNet']:
-                        continue
                     tmp_keys = next(iter(checkpoint[name + '_state_dict'].keys()))
                     if 'module' in tmp_keys:
                         tmp_new_dict = OrderedDict()
@@ -582,12 +518,8 @@ def get_loader(args, dataset):
 
 
 def map_exec_func(args):
-    if args.train_mode == 'GAN_UNSUP':
-        trainFunc = trainGAN_UNSUP
-        validationFunc = validateUN
-    else:
-        exit(-6)
-
+    trainFunc = trainGAN_UNSUP
+    validationFunc = validateUN
     return trainFunc, validationFunc
 
 
@@ -600,7 +532,7 @@ def save_model(args, epoch, networks, opts):
             save_dict['epoch'] = epoch + 1
             for name, net in networks.items():
                 save_dict[name+'_state_dict'] = net.state_dict()
-                if name in ['G_EMA', 'inceptionNet', 'C_EMA']:
+                if name in ['C_EMA']:
                     continue
                 save_dict[name.lower()+'_optimizer'] = opts[name].state_dict()
             print("SAVE CHECKPOINT[{}] DONE".format(epoch+1))
