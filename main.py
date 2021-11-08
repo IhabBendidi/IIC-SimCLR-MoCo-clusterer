@@ -32,7 +32,6 @@ from models.inception import InceptionV3
 
 from train.train_unsupervised import trainGAN_UNSUP
 
-from validation.validation import validateUN, calcFIDBatch
 from validation.plot_tsne import plot_tSNE
 
 from tools.utils import *
@@ -154,7 +153,6 @@ def main():
     args.data_dir = args.data_path
     args.start_epoch = 0
 
-    args.start_cexploration = 50
 
     if args.data_type != 'BBBC021_128' and args.data_type != 'BBBC021_196' :
         args.w_gp = 10.0
@@ -338,7 +336,7 @@ def main_worker(gpu, ngpus_per_node, args,run):
         args.iters = 10
 
     # map the functions to execute - un / sup / semi-
-    trainFunc, validationFunc = map_exec_func(args)
+    trainFunc = map_exec_func(args)
 
     queue_loader =  train_loader
 
@@ -354,7 +352,6 @@ def main_worker(gpu, ngpus_per_node, args,run):
 
     # All the test is done in the training - do not need to call
     if args.validation:
-        validationFunc(val_loader, networks, 999, args, {'logger': logger, 'queue': queue,'Neptune':run})
         best_AMI,best_clustering_epoch = plot_tSNE(val_loader, networks,999, args,{'logger': logger, 'queue': queue,'Neptune':run,'best_ami':best_AMI,"best_clustering_epoch":best_clustering_epoch,'best_kmeans_ami':best_kmeans_AMI,"best_kmeans_epoch":best_kmeans_epoch})
         return
 
@@ -366,7 +363,6 @@ def main_worker(gpu, ngpus_per_node, args,run):
         record_txt.close()
 
     # Run
-    validationFunc(val_loader, networks, 0, args, {'logger': logger, 'queue': queue,'Neptune':run})
     #plot_tSNE(val_loader, networks,0, args,{'logger': logger, 'queue': queue})
     if args.nept :
         run["parameters"] =  vars(args)
@@ -385,7 +381,6 @@ def main_worker(gpu, ngpus_per_node, args,run):
 
         trainFunc(train_loader, networks, opts, epoch, args, {'logger': logger, 'queue': queue,'Neptune':run})
 
-        validationFunc(val_loader, networks, epoch, args, {'logger': logger, 'queue': queue,'Neptune':run})
         best_AMI,best_clustering_epoch = plot_tSNE(val_loader, networks,epoch, args,{'logger': logger, 'queue': queue,'Neptune':run,'best_ami':best_AMI,"best_clustering_epoch":best_clustering_epoch,'best_kmeans_ami':best_kmeans_AMI,"best_kmeans_epoch":best_kmeans_epoch})
         if args.labels :
             best_kmeans_AMI = best_AMI[1]
@@ -519,8 +514,7 @@ def get_loader(args, dataset):
 
 def map_exec_func(args):
     trainFunc = trainGAN_UNSUP
-    validationFunc = validateUN
-    return trainFunc, validationFunc
+    return trainFunc
 
 
 def save_model(args, epoch, networks, opts):
