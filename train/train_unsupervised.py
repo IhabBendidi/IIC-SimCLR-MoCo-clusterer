@@ -128,6 +128,8 @@ def trainGAN_UNSUP(data_loader, networks, opts, epoch, args, additional):
         iic_loss_2 = calc_iic_loss(q_disc, k2_disc)
         original_iic = iic_loss.detach().clone()
 
+        # Add cofficients in this step if needed for the two transformed versions
+
         iic_loss += iic_loss_2
         moco_loss = calc_contrastive_loss(args, q_cont, k_cont, queue)
         moco_loss_2 = calc_contrastive_loss(args, q_cont, k2_cont, queue)
@@ -143,8 +145,7 @@ def trainGAN_UNSUP(data_loader, networks, opts, epoch, args, additional):
             if len(styles)<args.max_data:
                 styles.append(q_f[x])
                 raw_images.append(x_org[x])
-        if epoch >= args.separated:
-            c_loss = 0.1 * c_loss
+
 
         c_opt.zero_grad()
         #rkd_loss = c_loss.clone()

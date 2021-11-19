@@ -56,7 +56,7 @@ parser.add_argument('--data_folder', type=str, default='N2A',
                     help='exact Dataset folder. Please refer Dataset in README.md')
 
 parser.add_argument('--augmentation', default='original', help='augmentation to use',
-                    choices=['mnist','original','improved_v0','improved','improved_v2','improved_v2.2','improved_v3','improved_v3.1','improved_v4','improved_v4.1','improved_v5'])
+                    choices=['BBC','mnist','original','improved_v0','improved','improved_v2','improved_v2.2','improved_v3','improved_v3.1','improved_v4','improved_v4.1','improved_v5'])
 parser.add_argument('--workers', default=4, type=int, help='the number of workers of data loader')
 
 parser.add_argument('--model_name', type=str, default='IIC',
@@ -331,7 +331,7 @@ def main_worker(gpu, ngpus_per_node, args,run):
     # get dataset and data loader
     train_dataset, val_dataset = get_dataset(args)
     train_loader, val_loader, train_sampler = get_loader(args, {'train': train_dataset, 'val': val_dataset})
-    args.iters = (args.min_data // args.batch_size) + 1
+    args.iters = max((args.min_data // args.batch_size)  + 1,1000)
     if args.debug :
         args.iters = 10
 
@@ -340,7 +340,9 @@ def main_worker(gpu, ngpus_per_node, args,run):
 
     queue_loader =  train_loader
 
-    queue = initialize_queue(networks['C_EMA'], args.gpu, queue_loader, feat_size=args.sty_dim)
+    queue = initialize_queue(networks['C_EMA'], args.gpu, queue_loader, feat_size=args.sty_dim//3)
+
+
 
     # print all the argument
     print_args(args)

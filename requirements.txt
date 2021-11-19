@@ -10,4 +10,3 @@ neptune-client
 pandas
 numpy
 scikit-learn
-pyclustering
