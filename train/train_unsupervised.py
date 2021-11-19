@@ -11,7 +11,6 @@ import torch.optim
 import torch.utils.data
 import torch.utils.data.distributed
 from tools.utils import *
-from clustering.gap import get_gap_statistics
 from tools.ops import compute_grad_gp, update_average, copy_norm_params, calc_iic_loss, \
     queue_data, dequeue_data, average_gradients, calc_adv_loss, calc_contrastive_loss, calc_recon_loss
 import torchvision.utils as vutils
@@ -26,7 +25,6 @@ from tqdm import trange
 from PIL import Image
 from sklearn.cluster import KMeans
 from sklearn.metrics import f1_score,precision_score,recall_score
-from clustering.utils import closest_to_centroid
 
 ######################
 # Fully unsupervised #

@@ -82,12 +82,18 @@ To be completed
 
 ###### training from scratch
 
+```
 python main.py --gpu 2  --output_k 9  --model_name=validating_best_image_transfer --augmentation improved_v2 --data_type BBBC021_196  --data_folder ND8D --labels --neptune
+```
 
 ###### training using pretrained model
 
+```
 python main.py --gpu 2  --output_k 9  --model_name=validating_best_image_transfer --augmentation improved_v2 --data_type BBBC021_196  --data_folder ND8D --labels --neptune --load_model testing_high_cluster_number_20210604-024131_
+```
 
 ###### valiadtion using pretrained model
 
+```
 python main.py --gpu 2  --output_k 9  --model_name=validating_best_image_transfer --augmentation improved_v2 --data_type BBBC021_196  --data_folder ND8D --labels --validation --neptune --load_model testing_high_cluster_number_20210604-024131_
+```
