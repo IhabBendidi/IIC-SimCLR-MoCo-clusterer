@@ -83,7 +83,7 @@ To be completed
 ###### training from scratch
 
 ```
-python main.py --gpu 2  --output_k 9  --model_name=validating_best_image_transfer --augmentation improved_v2 --data_type BBBC021_196  --data_folder N1 --neptune --img_size 196
+python main.py --gpu 2  --output_k 9  --model_name=validating_best_image_transfer --augmentation BBC --data_type BBBC021_196  --data_folder N1 --neptune --img_size 196
 ```
 
 ###### training using pretrained model
