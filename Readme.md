@@ -47,8 +47,47 @@ else :
 ```
 
 
-
-
 ## Preparing your own data
 
 All datasets will be put in the `./data` folder. As you might have to create various different datasets inside, create a folder inside for each dataset you use, while giving it a linux-friendly name.
+
+To be completed
+
+
+## Commands
+
+- Adding the `--labels` command means you have ground truth for classes, and you wish to use it in evaluation
+
+- Adding the `--neptune` command means you wish to log your data in neptune (Check logging section)
+
+- `output_k` is the number of clusters
+
+- `model_name` is the name you'll use to keep track of this specific model. Date of training launch will be added to its name.
+
+- `augmentation` is the contrastive loss augmentation types you'll be using. They can be consulted and modified in the `datasets/datasetgetter.py` file.
+
+- `epochs` is the maximal number of epochs you wish to have. It is 1000 by default
+
+- `batch_size` is the training batch size. Default is 32
+
+- `val_batch` is the validation batch size. Default is 10
+
+- `sty_dim` is the size of the style vector. default is 128
+
+- `img_size` size of input images
+
+- `--debug` is a flag for activating debug mode, where the training is very fast, just to check if everything is working fine
+
+
+
+###### training from scratch
+
+python main.py --gpu 2  --output_k 9  --model_name=validating_best_image_transfer --augmentation improved_v2 --data_type BBBC021_196  --data_folder ND8D --labels --neptune
+
+###### training using pretrained model
+
+python main.py --gpu 2  --output_k 9  --model_name=validating_best_image_transfer --augmentation improved_v2 --data_type BBBC021_196  --data_folder ND8D --labels --neptune --load_model testing_high_cluster_number_20210604-024131_
+
+###### valiadtion using pretrained model
+
+python main.py --gpu 2  --output_k 9  --model_name=validating_best_image_transfer --augmentation improved_v2 --data_type BBBC021_196  --data_folder ND8D --labels --validation --neptune --load_model testing_high_cluster_number_20210604-024131_
