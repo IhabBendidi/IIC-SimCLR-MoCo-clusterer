@@ -15,8 +15,6 @@ import pandas as pd
 
 from sklearn.manifold import TSNE
 from sklearn import metrics
-from clustering.gap import get_gap_statistics
-from clustering.utils import closest_to_centroid,cluster_acc
 
 import matplotlib.pyplot as plt
 import cv2
