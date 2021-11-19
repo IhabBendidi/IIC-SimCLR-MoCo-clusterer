@@ -15,7 +15,7 @@ import pandas as pd
 
 from sklearn.manifold import TSNE
 from sklearn import metrics
-
+from clustering.utils import closest_to_centroid,cluster_acc
 import matplotlib.pyplot as plt
 import cv2
 from tqdm import trange
@@ -159,6 +159,82 @@ def plot_tSNE(data_loader, networks, epoch, args, additional=None):
 
 
         cluster_centroids = [np.mean(x, axis=0) for x in cluster_features]
+
+        # We want to get the closest 20 (max) images to each cluster
+        cluster_closest_grid = [[] for _ in range(args.output_k)]
+        cluster_closest_images = closest_to_centroid(cluster_features,cluster_centroids)
+        for i in range(len(cluster_closest_images)):
+            for j in range(len(cluster_closest_images[i])):
+                if cluster_closest_images[i][j] == True:
+                    cluster_closest_grid[i].append(cluster_grid[i][j])
+        # this one is the clusters (grids of images) of entropy
+        for i in range(args.output_k):
+            print(i, len(cluster_grid[i]), cluster_map[i])
+            if len(cluster_grid[i]) == 0:
+                continue
+            if len(cluster_grid[i]) <= 3:
+                tmp = torch.cat(cluster_grid[i], 0)
+            elif len(cluster_grid[i]) <= 200 :
+                tmp = torch.cat(cluster_grid[i][:len(cluster_grid[i])//2], 0)
+            elif len(cluster_grid[i]) <= 400 :
+                tmp = torch.cat(cluster_grid[i][:len(cluster_grid[i])//4], 0)
+            elif len(cluster_grid[i]) <= 700 :
+                tmp = torch.cat(cluster_grid[i][:len(cluster_grid[i])//7], 0)
+            elif len(cluster_grid[i]) <= 1500 :
+                tmp = torch.cat(cluster_grid[i][:len(cluster_grid[i])//12], 0)
+            elif len(cluster_grid[i]) <= 3000 :
+                tmp = torch.cat(cluster_grid[i][:len(cluster_grid[i])//25], 0)
+            elif len(cluster_grid[i]) <= 5000 :
+                tmp = torch.cat(cluster_grid[i][:len(cluster_grid[i])//40], 0)
+            elif len(cluster_grid[i]) <= 6000 :
+                tmp = torch.cat(cluster_grid[i][:len(cluster_grid[i])//55], 0)
+            elif len(cluster_grid[i]) <= 7000 :
+                tmp = torch.cat(cluster_grid[i][:len(cluster_grid[i])//70], 0)
+            elif len(cluster_grid[i]) <= 10000 :
+                tmp = torch.cat(cluster_grid[i][:len(cluster_grid[i])//100], 0)
+            else :
+                tmp = torch.cat(cluster_grid[i][:len(cluster_grid[i])//500], 0)
+            tmp_closest = torch.cat(cluster_closest_grid[i], 0)
+            if args.labels :
+                composition = {labels_list[m]:cluster_composition[i].count(m) for m in cluster_composition[i]}
+                composition_detail = "__".join([c + "_" + str(int(composition[c]*100/len(cluster_grid[i]))) for c in composition.keys() if int(composition[c]*100/len(cluster_grid[i])) > 3])
+
+            if args.sources :
+                composition = {labels_list[m]:cluster_composition[i].count(m) for m in cluster_composition[i]}
+                composition_detail = "__".join([c + "_" + str(int(composition[c]*100/len(cluster_grid[i]))) for c in composition.keys() if int(composition[c]*100/len(cluster_grid[i])) > 3])
+
+                plate_composition = {m:plaque_composition[i].count(m) for m in plaque_composition[i]}
+                plate_composition_detail = "__".join([c + "_" + str(int(plate_composition[c]*100/len(cluster_grid[i]))) for c in plate_composition.keys() if int(plate_composition[c]*100/len(cluster_grid[i])) > 3])
+
+                p_composition = {m:pit_composition[i].count(m) for m in pit_composition[i]}
+                pit_composition_detail = "__".join([c + "_" + str(int(p_composition[c]*100/len(cluster_grid[i]))) for c in p_composition.keys() if int(p_composition[c]*100/len(cluster_grid[i])) > 3])
+            else :
+                composition_detail = ""
+
+            print(composition_detail)
+
+            vutils.save_image(tmp, [args.plot_dir + '/grid_{}_' + composition_detail + '.png'][0].format(i), normalize=True, nrow=int(np.sqrt(tmp.size(0))), padding=0)
+            picture = Image.open([args.plot_dir + '/grid_{}_' + composition_detail + '.png'][0].format(i))
+            picture.save([args.plot_dir + '/grid_{}_' + composition_detail + '.png'][0].format(i),optimize=True,quality=5)
+
+            vutils.save_image(tmp_closest, [args.plot_dir + '/grid_closest_{}.png'][0].format(i), normalize=True, nrow=int(np.sqrt(tmp_closest.size(0))), padding=0)
+
+            if args.sources :
+                vutils.save_image(tmp, [args.plot_dir + '/grid_{}_' + plate_composition_detail + '.png'][0].format(i), normalize=True, nrow=int(np.sqrt(tmp.size(0))), padding=0)
+                picture = Image.open([args.plot_dir + '/grid_{}_' + plate_composition_detail + '.png'][0].format(i))
+                picture.save([args.plot_dir + '/grid_{}_' + plate_composition_detail + '.png'][0].format(i),optimize=True,quality=5)
+
+                vutils.save_image(tmp, [args.plot_dir + '/grid_{}_' + pit_composition_detail + '.png'][0].format(i), normalize=True, nrow=int(np.sqrt(tmp.size(0))), padding=0)
+                picture = Image.open([args.plot_dir + '/grid_{}_' + pit_composition_detail + '.png'][0].format(i))
+                picture.save([args.plot_dir + '/grid_{}_' + pit_composition_detail + '.png'][0].format(i),optimize=True,quality=5)
+
+            if args.nept :
+                run["clusters/"+str(epoch)+"/bulk"].log(File([args.plot_dir + '/grid_{}_' + composition_detail + '.png'][0].format(i)))
+                run["clusters/"+str(epoch)+"/bulk_centroids"].log(File([args.plot_dir + '/grid_closest_{}.png'][0].format(i)))
+                run["clusters/"+str(epoch)+"/separate/"+str(i) + "_" + composition_detail].log(File([args.plot_dir + '/grid_{}_' + composition_detail + '.png'][0].format(i)))
+                if args.sources :
+                    run["clusters/"+str(epoch)+"/plates/"+str(i) + "_" + plate_composition_detail].log(File([args.plot_dir + '/grid_{}_' + plate_composition_detail + '.png'][0].format(i)))
+                    run["clusters/"+str(epoch)+"/pits/"+str(i) + "_" + pit_composition_detail].log(File([args.plot_dir + '/grid_{}_' + pit_composition_detail + '.png'][0].format(i)))
 
 
         print(cluster_map)
