@@ -25,10 +25,7 @@ import torch.multiprocessing as mp
 import torch.utils.data
 import torch.utils.data.distributed
 
-from models.generator import Generator as Generator
-from models.discriminator import Discriminator as Discriminator
 from models.guidingNet import GuidingNet
-from models.inception import InceptionV3
 
 from train.train_unsupervised import trainGAN_UNSUP
 
@@ -126,12 +123,12 @@ if __name__ == '__main__':
         f.close()
         if args.offline :
             CONNECTION_MODE = "offline"
-            run = neptune.init(project='ihab/rtunit',# your project
+            run = neptune.init(project='ihab/oocyte',# your project
                            api_token=token, # your api token
                            mode=CONNECTION_MODE,
                            )
         else :
-            run = neptune.init(project='ihab/rtunit',# your project
+            run = neptune.init(project='ihab/oocyte',# your project
                        api_token=token, # your api token
                        )
     else :
